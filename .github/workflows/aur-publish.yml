@@ -73,9 +73,22 @@ jobs:
 
       - name: Inspect package and run CLI smoke check
         run: |
-          namcap PKGBUILD ./*.pkg.tar.zst | tee "$RUNNER_TEMP/namcap.log"
+          main_package=(rustdesk-hide-cm-[0-9]*-x86_64.pkg.tar.zst)
+          debug_package=(rustdesk-hide-cm-debug-*.pkg.tar.zst)
+          namcap PKGBUILD "${main_package[@]}" | tee "$RUNNER_TEMP/namcap.log"
+          # makepkg's debug build-id links point into the companion main package.
+          namcap -e symlink "${debug_package[@]}" | tee -a "$RUNNER_TEMP/namcap.log"
           if grep -q ' E: ' "$RUNNER_TEMP/namcap.log"; then
             echo 'namcap reported package errors.' >&2
+            exit 1
+          fi
+          combined_root=$(mktemp -d)
+          trap 'rm -rf "$combined_root"' EXIT
+          bsdtar -xf "${main_package[0]}" -C "$combined_root"
+          bsdtar -xf "${debug_package[0]}" -C "$combined_root"
+          broken_link=$(find "$combined_root/usr/lib/debug" -type l ! -exec test -e {} \; -print -quit)
+          if [[ -n "$broken_link" ]]; then
+            printf 'Broken debug package link: %s\n' "$broken_link" >&2
             exit 1
           fi
           package_version=$(sed -n 's/^[[:space:]]*pkgver = //p' .SRCINFO)

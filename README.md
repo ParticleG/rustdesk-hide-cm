@@ -48,7 +48,7 @@ This is a Rust, Flutter, and vcpkg source build, not a repackaged official binar
 
 The build job uses `archlinux:base-devel`, initializes the pacman signing keyring, updates its packages, creates an unprivileged builder, checks shell syntax and the committed `.SRCINFO`, and runs `makepkg --cleanbuild --force --syncdeps --noconfirm`. Only dependency installation through pacman is permitted through passwordless sudo inside the disposable build container.
 
-After compilation it runs `namcap`, rejects any `E:` diagnostics, checks the packaged executable's `--version`, and uploads the resulting `.pkg.tar.zst` files as a GitHub Actions artifact. Warnings remain visible but do not block publication. Flutter plugin `RUNPATH`s are set to `$ORIGIN` during packaging so they resolve the bundled engine instead of a writable build directory. This CLI check does not validate a graphical remote session or the hide/restore interaction.
+After compilation it runs `namcap` on the main and debug packages, rejects package errors, verifies debug-package links against the main package in a combined extraction, checks the packaged executable's `--version`, and uploads the resulting `.pkg.tar.zst` files as a GitHub Actions artifact. The debug package's `symlink` rule is excluded from `namcap` because Arch `makepkg` creates build-id links to files in the companion main package; the combined extraction checks those targets instead. Other warnings remain visible but do not block publication. Flutter plugin `RUNPATH`s are set to `$ORIGIN` during packaging so they resolve the bundled engine instead of a writable build directory. This CLI check does not validate a graphical remote session or the hide/restore interaction.
 
 ### Publication setup
 
